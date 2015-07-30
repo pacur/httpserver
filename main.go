@@ -196,10 +196,13 @@ func main() {
 		panic(err)
 	}
 
-	path = *flag.String("path", path, "Path to serve")
-	host := *flag.String("host", "", "Server host")
-	port := *flag.Int("port", 8000, "Server port number")
+	pathPtr := flag.String("path", path, "Path to serve")
+	hostPtr := flag.String("host", "", "Server host")
+	portPtr := flag.Int("port", 8000, "Server port number")
 	flag.Parse()
+	path = *pathPtr
+	host := *hostPtr
+	port := *portPtr
 
 	path, err = filepath.Abs(path)
 	if err != nil {
