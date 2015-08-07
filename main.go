@@ -81,10 +81,18 @@ func (s *Items) Join(sep string) (data string) {
 
 type StaticHandler struct {
 	Root       string
+	Cache      bool
 	fileServer http.Handler
 }
 
 func (h *StaticHandler) Handle(c *gin.Context) {
+	if !h.Cache {
+		c.Writer.Header().Add("Cache-Control",
+			"no-cache, no-store, must-revalidate")
+		c.Writer.Header().Add("Pragma", "no-cache")
+		c.Writer.Header().Add("Expires", "0")
+	}
+
 	path := filepath.Join(h.Root, filepath.FromSlash(
 		filepath.Clean("/"+c.Param("filepath"))))
 
@@ -199,10 +207,12 @@ func main() {
 	pathPtr := flag.String("path", path, "Path to serve")
 	hostPtr := flag.String("host", "", "Server host")
 	portPtr := flag.Int("port", 8000, "Server port number")
+	cachePtr := flag.Bool("cache", false, "Enable cache")
 	flag.Parse()
 	path = *pathPtr
 	host := *hostPtr
 	port := *portPtr
+	cache := *cachePtr
 
 	path, err = filepath.Abs(path)
 	if err != nil {
@@ -210,7 +220,8 @@ func main() {
 	}
 
 	static := &StaticHandler{
-		Root: path,
+		Root:  path,
+		Cache: cache,
 	}
 
 	gin.SetMode(gin.ReleaseMode)
