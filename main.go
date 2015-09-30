@@ -205,7 +205,7 @@ func main() {
 	}
 
 	pathPtr := flag.String("path", path, "Path to serve")
-	hostPtr := flag.String("host", "", "Server host")
+	hostPtr := flag.String("host", "[::]", "Server host")
 	portPtr := flag.Int("port", 8000, "Server port number")
 	cachePtr := flag.Bool("cache", false, "Enable cache")
 	flag.Parse()
