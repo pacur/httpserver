@@ -62,6 +62,7 @@ func (s *Items) Less(i int, j int) bool {
 	} else if !iHidden && jHidden {
 		return false
 	}
+
 	return s.items[i].Name < s.items[j].Name
 }
 
