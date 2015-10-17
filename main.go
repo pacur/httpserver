@@ -51,7 +51,7 @@ func (s *Items) Less(i int, j int) bool {
 	iDir := s.items[i].IsDir
 	jDir := s.items[j].IsDir
 	iHidden := s.items[i].Name[:1] == "."
-	jHidden := s.items[i].Name[:1] == "."
+	jHidden := s.items[j].Name[:1] == "."
 
 	if iDir && !jDir {
 		return true
