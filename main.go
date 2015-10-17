@@ -50,8 +50,9 @@ func (s *Items) Len() (n int) {
 func (s *Items) Less(i int, j int) bool {
 	if s.items[i].IsDir && !s.items[j].IsDir {
 		return true
-	}
-	if s.items[i].Name[:1] == "." && s.items[i].Name[:1] != "." {
+	} else if !s.items[i].IsDir && s.items[j].IsDir {
+		return false
+	} else if s.items[i].Name[:1] == "." && s.items[i].Name[:1] != "." {
 		return true
 	}
 	return s.items[i].Name < s.items[j].Name
