@@ -103,10 +103,6 @@ func (h *StaticHandler) Handle(c *gin.Context) {
 		c.Writer.Header().Add("Expires", "0")
 	}
 
-	if h.ContentType != "" {
-		c.Writer.Header().Add("Content-Type", "application/ovpn")
-	}
-
 	path := filepath.Join(h.Root, filepath.FromSlash(
 		filepath.Clean("/"+c.Param("filepath"))))
 
@@ -126,6 +122,9 @@ func (h *StaticHandler) Handle(c *gin.Context) {
 	}
 
 	if !ok {
+		if h.ContentType != "" {
+			c.Writer.Header().Add("Content-Type", "application/ovpn")
+		}
 		h.fileServer.ServeHTTP(c.Writer, c.Request)
 	}
 }
