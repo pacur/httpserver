@@ -89,9 +89,10 @@ func (s *Items) Join(sep string) (data string) {
 }
 
 type StaticHandler struct {
-	Root       string
-	Cache      bool
-	fileServer http.Handler
+	Root        string
+	Cache       bool
+	ContentType string
+	fileServer  http.Handler
 }
 
 func (h *StaticHandler) Handle(c *gin.Context) {
@@ -100,6 +101,10 @@ func (h *StaticHandler) Handle(c *gin.Context) {
 			"no-cache, no-store, must-revalidate")
 		c.Writer.Header().Add("Pragma", "no-cache")
 		c.Writer.Header().Add("Expires", "0")
+	}
+
+	if h.ContentType != "" {
+		c.Writer.Header().Add("Content-Type", "application/ovpn")
 	}
 
 	path := filepath.Join(h.Root, filepath.FromSlash(
@@ -184,7 +189,7 @@ func (h *StaticHandler) HandleDirList(path string, c *gin.Context) (
 			IsDir: item.IsDir(),
 			Formatted: fmt.Sprintf(
 				`<a href="%s">`, name) + fmt.Sprintf(
-				"%-54s %s % 19s", formattedName+"</a>", modTime, size),
+				"%-54s %s %19s", formattedName+"</a>", modTime, size),
 		})
 	}
 
@@ -217,11 +222,13 @@ func main() {
 	hostPtr := flag.String("host", "[::]", "Server host")
 	portPtr := flag.Int("port", 8000, "Server port number")
 	cachePtr := flag.Bool("cache", false, "Enable cache")
+	contentTypePtr := flag.String("type", "", "Force content type")
 	flag.Parse()
 	path = *pathPtr
 	host := *hostPtr
 	port := *portPtr
 	cache := *cachePtr
+	contentType := *contentTypePtr
 
 	path, err = filepath.Abs(path)
 	if err != nil {
@@ -229,8 +236,9 @@ func main() {
 	}
 
 	static := &StaticHandler{
-		Root:  path,
-		Cache: cache,
+		Root:        path,
+		Cache:       cache,
+		ContentType: contentType,
 	}
 
 	gin.SetMode(gin.ReleaseMode)
