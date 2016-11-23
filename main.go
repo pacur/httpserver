@@ -123,7 +123,7 @@ func (h *StaticHandler) Handle(c *gin.Context) {
 
 	if !ok {
 		if h.ContentType != "" {
-			c.Writer.Header().Add("Content-Type", "application/ovpn")
+			c.Writer.Header().Add("Content-Type", h.ContentType)
 		}
 		h.fileServer.ServeHTTP(c.Writer, c.Request)
 	}
