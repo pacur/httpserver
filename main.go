@@ -9,6 +9,7 @@ import (
 	"os"
 	"path/filepath"
 	"sort"
+	"strings"
 )
 
 const body = `<html>
@@ -133,8 +134,12 @@ func (h *StaticHandler) HandleDirList(path string, c *gin.Context) (
 	ok bool, err error) {
 
 	pathFrm := filepath.Clean("/" + c.Param("filepath"))
-	if pathFrm[len(pathFrm)-1:] != "/" {
+	if !strings.HasSuffix(pathFrm, "/") {
 		pathFrm += "/"
+	}
+
+	if !strings.HasSuffix(c.Request.URL.Path, "/") {
+		c.Redirect(301, c.Request.URL.Path+"/")
 	}
 
 	items := &Items{}
