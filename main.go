@@ -1,15 +1,25 @@
 package main
 
 import (
+	"crypto/ecdsa"
+	"crypto/elliptic"
+	"crypto/rand"
+	"crypto/tls"
+	"crypto/x509"
+	"crypto/x509/pkix"
+	"encoding/pem"
 	"flag"
 	"fmt"
-	"github.com/gin-gonic/gin"
 	"io/ioutil"
+	"math/big"
 	"net/http"
 	"os"
 	"path/filepath"
 	"sort"
 	"strings"
+	"time"
+
+	"github.com/gin-gonic/gin"
 )
 
 const body = `<html>
@@ -216,6 +226,57 @@ func (h *StaticHandler) Setup(engine *gin.Engine) {
 	return
 }
 
+func selfCert(parent *x509.Certificate, parentKey *ecdsa.PrivateKey) (
+	cert *x509.Certificate, certByt []byte, certKey *ecdsa.PrivateKey,
+	err error) {
+
+	certKey, err = ecdsa.GenerateKey(
+		elliptic.P384(),
+		rand.Reader,
+	)
+	if err != nil {
+		return
+	}
+
+	serialLimit := new(big.Int).Lsh(big.NewInt(1), 128)
+	serial, err := rand.Int(rand.Reader, serialLimit)
+	if err != nil {
+		return
+	}
+
+	certTempl := &x509.Certificate{
+		SerialNumber: serial,
+		Subject: pkix.Name{
+			Organization: []string{"Pacur HTTP Server"},
+		},
+		NotBefore: time.Now().Add(-24 * time.Hour),
+		NotAfter:  time.Now().Add(26280 * time.Hour),
+		KeyUsage: x509.KeyUsageKeyEncipherment |
+			x509.KeyUsageDigitalSignature,
+		ExtKeyUsage:           []x509.ExtKeyUsage{x509.ExtKeyUsageServerAuth},
+		BasicConstraintsValid: true,
+		SignatureAlgorithm:    x509.ECDSAWithSHA256,
+	}
+
+	if parent == nil {
+		parent = certTempl
+		parentKey = certKey
+	}
+
+	certByt, err = x509.CreateCertificate(rand.Reader, certTempl, parent,
+		certKey.Public(), parentKey)
+	if err != nil {
+		return
+	}
+
+	cert, err = x509.ParseCertificate(certByt)
+	if err != nil {
+		return
+	}
+
+	return
+}
+
 func main() {
 	path, err := os.Getwd()
 	if err != nil {
@@ -226,12 +287,14 @@ func main() {
 	hostPtr := flag.String("host", "[::]", "Server host")
 	portPtr := flag.Int("port", 8000, "Server port number")
 	cachePtr := flag.Bool("cache", false, "Enable cache")
+	tlsServerPtr := flag.Bool("tls", false, "Enable TLS server")
 	contentTypePtr := flag.String("type", "", "Force content type")
 	flag.Parse()
 	path = *pathPtr
 	host := *hostPtr
 	port := *portPtr
 	cache := *cachePtr
+	tlsServer := *tlsServerPtr
 	contentType := *contentTypePtr
 
 	path, err = filepath.Abs(path)
@@ -252,10 +315,75 @@ func main() {
 
 	static.Setup(router)
 
-	fmt.Printf("Listening and serving %s on %s:%d\n", path, host, port)
+	scheme := ""
+	if tlsServer {
+		scheme = "https"
+	} else {
+		scheme = "http"
+	}
+	fmt.Printf("Listening and serving %s on %s://%s:%d\n",
+		path, scheme, host, port)
 
-	err = router.Run(fmt.Sprintf("%s:%d", host, port))
-	if err != nil {
-		panic(err)
+	server := http.Server{
+		Addr:    fmt.Sprintf("%s:%d", host, port),
+		Handler: router,
+	}
+
+	if tlsServer {
+		caCert, _, caKey, err := selfCert(nil, nil)
+		if err != nil {
+			panic(err)
+		}
+
+		_, certByt, certKey, err := selfCert(caCert, caKey)
+		if err != nil {
+			panic(err)
+		}
+
+		certKeyByte, err := x509.MarshalECPrivateKey(certKey)
+		if err != nil {
+			panic(err)
+		}
+
+		certKeyBlock := &pem.Block{
+			Type:  "EC PRIVATE KEY",
+			Bytes: certKeyByte,
+		}
+		keyPem := pem.EncodeToMemory(certKeyBlock)
+
+		certBlock := &pem.Block{
+			Type:  "CERTIFICATE",
+			Bytes: certByt,
+		}
+		certPem := pem.EncodeToMemory(certBlock)
+
+		keypair, err := tls.X509KeyPair(certPem, keyPem)
+		if err != nil {
+			return
+		}
+
+		tlsConfig := &tls.Config{
+			MinVersion: tls.VersionTLS12,
+			MaxVersion: tls.VersionTLS12,
+			Certificates: []tls.Certificate{
+				keypair,
+			},
+		}
+
+		listener, err := tls.Listen("tcp", server.Addr, tlsConfig)
+		if err != nil {
+			panic(err)
+			return
+		}
+
+		err = server.Serve(listener)
+		if err != nil {
+			panic(err)
+		}
+	} else {
+		err = server.ListenAndServe()
+		if err != nil {
+			panic(err)
+		}
 	}
 }
