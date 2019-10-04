@@ -364,7 +364,7 @@ func main() {
 
 		tlsConfig := &tls.Config{
 			MinVersion: tls.VersionTLS12,
-			MaxVersion: tls.VersionTLS12,
+			MaxVersion: tls.VersionTLS13,
 			Certificates: []tls.Certificate{
 				keypair,
 			},
